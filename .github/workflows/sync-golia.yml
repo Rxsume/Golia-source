@@ -49,6 +49,15 @@ jobs:
               sys.exit(1)
 
           url = ipa["browser_download_url"]
+          # 不挂 VPN 时 GitHub 直链在国内只有几十 KB/s，走 gh-proxy.org 加速下载；
+          # 已实测代理返回的文件与直链 SHA256 完全一致。代理不可用时回落直链。
+          try:
+              _probe = urllib.request.Request("https://gh-proxy.org/" + url, headers={"Range": "bytes=0-0"})
+              with urllib.request.urlopen(_probe, timeout=20) as _pr:
+                  if _pr.status in (200, 206):
+                      url = "https://gh-proxy.org/" + url
+          except Exception as _e:
+              print(f"gh-proxy probe failed, keep direct URL: {_e}")
           size = ipa["size"]
           date = (rel.get("published_at") or "")[:10]
           print(f"Latest Golia: {version} {url} size={size} date={date}")
