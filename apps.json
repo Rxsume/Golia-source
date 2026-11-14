@@ -2,11 +2,11 @@
   "apps": [
     {
       "bundleIdentifier": "top.izuna.goliaios",
-      "downloadURL": "https://github.com/Rxsume/Golia/releases/download/v0.7.28-lx16/Folia_0.7.28-lx16.ipa",
+      "downloadURL": "https://github.com/Rxsume/Golia/releases/download/v0.7.28-lx17/Folia_0.7.28-lx17.ipa",
       "localizedDescription": "Folia 0.7.28 fork + LX 兜底，Golia 专用播放器。下载后用全能签重签安装。",
       "name": "Golia",
-      "size": 65449643,
-      "version": "0.7.28-lx16",
+      "size": 65689623,
+      "version": "0.7.28-lx17",
       "versionDate": "2026-11-14"
     }
   ],
