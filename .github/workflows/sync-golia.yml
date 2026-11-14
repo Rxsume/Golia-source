@@ -1,0 +1,83 @@
+name: Sync Golia release to source
+
+# Golia 一发新 Release，这里就自动把 apps.json 更新到新版。
+# 不走 Muse 定时任务：Muse 的 GitHub 写入每次都要用户点审批卡片，
+# Actions 在 GitHub 内部用 GITHUB_TOKEN 提交，不需要人工点。
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync from Golia latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, urllib.request
+
+          API = "https://api.github.com/repos/Rxsume/Golia/releases/latest"
+          req = urllib.request.Request(API, headers={
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          })
+          try:
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  rel = json.load(r)
+          except Exception as e:
+              print(f"GitHub API failed, skip this run: {e}")
+              sys.exit(1)
+
+          if rel.get("draft") or rel.get("prerelease"):
+              print("Latest release is draft/prerelease, skip.")
+              sys.exit(0)
+
+          tag = (rel.get("tag_name") or "").strip()
+          version = tag[1:] if tag.startswith("v") else tag
+          ipa = next((a for a in rel.get("assets", []) if a.get("name", "").endswith(".ipa")), None)
+          if not version or not ipa:
+              print(f"No version or no .ipa asset in release {tag}, skip.")
+              sys.exit(1)
+
+          url = ipa["browser_download_url"]
+          size = ipa["size"]
+          date = (rel.get("published_at") or "")[:10]
+          print(f"Latest Golia: {version} {url} size={size} date={date}")
+
+          with open("apps.json", encoding="utf-8") as f:
+              data = json.load(f)
+          app = next((a for a in data["apps"] if a.get("bundleIdentifier") == "top.izuna.goliaios"), None)
+          if app is None:
+              print("Golia app not found in apps.json, skip.")
+              sys.exit(1)
+
+          if app.get("version") == version and app.get("downloadURL") == url:
+              print(f"Already up to date at {version}, nothing to do.")
+              sys.exit(0)
+
+          app["version"] = version
+          app["downloadURL"] = url
+          app["size"] = size
+          if date:
+              app["versionDate"] = date
+          with open("apps.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, ensure_ascii=False, indent=2)
+              f.write("\n")
+          print(f"Updated apps.json to {version}")
+          PY
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps.json
+          git diff --cached --quiet && echo "No changes to commit." || (git commit -m "Sync Golia $(python3 -c "import json; print(json.load(open('apps.json'))['apps'][0]['version'])")" && git push)
