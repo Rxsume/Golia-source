@@ -5,7 +5,7 @@ name: Sync Golia release to source
 # Actions 在 GitHub 内部用 GITHUB_TOKEN 提交，不需要人工点。
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
